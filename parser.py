@@ -15,16 +15,16 @@ else:
         link = input("Enter the name of a subreddit to parse (e.g. AskReddit): \n")
 
 data = """"""
-data2 = """"""
+#data2 = """"""
 
 #print("Searching...")
 #time.sleep(3)
-html_file = open("rss.html", "w")
+html_file = open("rss.html", "w+")
 xml_data = open("rss.xml", "r")
 headings = ["<!DOCTYPE html>\n", "<html>\n", "<head>\n", "<title>RSS FEED</title>\n", "<style>\n", "</style>\n", "</head>\n", "<body>\n"]
 
 for item in headings:
-    data2 +=(item)
+    html_file.write(item)
 
 #xml_data = urllib.request.urlopen("https://www.reddit.com/r/" + link.lower() + "/.rss")
 for line in xml_data:
@@ -43,30 +43,25 @@ post_counter = 0
 
 replace_list = ["<tr>", "</tr>", "<td>",
 "</td>", "<table>", "</table>", "<!-- SC_OFF -->",
-"<div class=\"md\">", "<br/>", "<ul>", "</ul>", "</a>"]
+"<div class=\"md\">", "<br/>", "<ul>", "</ul>"]
 
 for entry in entries:
-    data2 += "<div class=\"entry\">\n"
-    #title = "<div class=\"title\">" + entry.find('title').text + "</div>\n"
-    title = entry.find('title').text
+    html_file.write("<div class=\"entry\">\n")
+    title = "<div class=\"title\">" + entry.find('title').text + "</div>\n"
     author = "<div class=\"author\">" + entry.find('author')[0].text + "</div>\n"
     original_link = "<a href=\"" + entry.find('link').attrib['href'] + "\">"
-    #data2 += "<a href=\"" + original_link + "\">\n"
+    user_link = "<a href=\"" + entry.find('author')[1].text + "\">\n"
 
     content = entry.find('content').text
 
     for item in replace_list:
         content = content.replace(item, "")
 
-    for link in re.finditer('<a\s+(?:[^>]*?\s+)?href=([\"\'])(.*?)\\1>', content):
-        if re.search('<a\s+(?:[^>]*?\s+)?href=([\"\'])https://www.reddit.com\/r\/\w+\/comments\/(.*?)>', link.group(0)) != None and link.group(0)[9:len(link.group(0)) - 2] != original_link:
-            content = content.replace(link.group(0), "<a href=\"" + link.group(0)[9:len(link.group(0))-2] + "\">" + title + "</a>\n")#" ")
-            #print(content.replace(link.group(0), "<a href=\"" + link.group(0)[9:len(link.group(0))-2] + "\">" + title + "</a>\n"))
-        else:
-            content = content.replace(link.group(0), '')
-        for img in re.finditer('<img\s+(?:[^>]*?\s+)?src=([\"\'])(.*?)\\1 alt=([\"\'])(.*?)\\1 title=([\"\'])(.*?)\\1 \/>', content):
-            for src in re.finditer('src=([\"\'])(.*?)\\1', img.group(0)):
-                content = content.replace(img.group(0), "<img src=\"" + src.group(0)[5:len(src.group(0))-1] + "\">\n")
+    html_file.write(original_link + title + "</a>\n")
+    html_file.write(user_link + author + "</a>\n")
+
+    for img in re.finditer('<img\s+(?:[^>]*?\s+)?src=([\"\'])(.*?)\\1 alt=([\"\'])(.*?)\\1 title=([\"\'])(.*?)\\1 \/>', content):
+        html_file.write(img.group(0) + "\n")
 
     content = content.replace("&amp;", "&")
     content = content.replace("&#39;", "'")
@@ -74,24 +69,20 @@ for entry in entries:
     split_content = content.partition('</div>')[0]
 
     if "&#32" in split_content:
-        data2 += author
-        data2 += "<div class=\"updated\">" + entry.find('updated').text + "</div>\n"
-        data2 += split_content.partition('&#32')[0].strip()
+        html_file.write("<div class=\"updated\">" + entry.find('updated').text + "</div>\n")
+        extra_link_index = split_content.index(split_content.partition('&#32')[0].strip()[0:len(original_link)])
+        if split_content[extra_link_index:len(original_link) + extra_link_index] in split_content:
+            split_content.replace(split_content[extra_link_index:len(split_content) - 1], "")
+            print(split_content)
+        #if split_content.partition('&#32')[0].strip().split("> <")[0] in html_file.read():
+        print("", end="")
     elif original_link + title + "</a>\n" not in split_content and "&#32" not in split_content:
-        data2 += author
-        #data2 += original_link + title + "</a>\n"
-        data2 += "<div class=\"updated\">" + entry.find('updated').text + "</div>\n"
-        data += split_content.strip()
-    else:
-        data2 += author
-        #print(original_link)
-        data2 += original_link + title + "</a>\n"
-        data2 += "<div class=\"updated\">" + entry.find('updated').text + "</div>\n"
-        data += split_content.strip()
-    data2 += ("</div>\n")
-data2 += "</body>\n"
-data2 += "</html>"
-html_file.write(data2)
+        html_file.write("<div class=\"updated\">" + entry.find('updated').text + "</div>\n")
+        html_file.write(split_content.strip())
+    html_file.write("</div>\n")
+    html_file.write("\n")
+html_file.write("</body>\n")
+html_file.write("</html>")
 html_file.close()
 xml_data.close()
 
